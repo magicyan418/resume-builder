@@ -8,9 +8,13 @@ import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Icon } from "@iconify/react"
+import dynamic from "next/dynamic"
 import type { ResumeModule } from "@/types/resume"
 import { createNewModule } from "@/lib/resume-utils"
 import IconPicker from "./icon-picker"
+
+// 动态引入MDEditor，避免SSR问题
+const MDEditor = dynamic(() => import("@uiw/react-md-editor"), { ssr: false })
 
 interface ModuleEditorProps {
   modules: ResumeModule[]
@@ -273,12 +277,11 @@ function ModuleItemEditor({
 
             <div className="form-group">
               <Label className="form-label">详细内容</Label>
-              <Textarea
-                value={module.content}
-                onChange={(e) => onUpdate({ content: e.target.value })}
-                placeholder="请输入详细描述内容，支持多行文本"
-                rows={4}
-                className="resize-none"
+              <MDEditor
+                value={module.content || ""}
+                onChange={(val = "") => onUpdate({ content: val })}
+                height={200}
+                data-color-mode="light"
               />
             </div>
           </div>

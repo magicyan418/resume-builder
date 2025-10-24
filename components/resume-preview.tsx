@@ -2,6 +2,7 @@
 
 import { Icon } from "@iconify/react";
 import type { ResumeData } from "@/types/resume";
+import { renderMarkdown } from "@/lib/markdown";
 
 interface ResumePreviewProps {
   resumeData: ResumeData;
@@ -98,9 +99,15 @@ export default function ResumePreview({ resumeData }: ResumePreviewProps) {
 
                 {/* 内容 */}
                 {module.content && (
-                  <div className="module-content text-sm text-foreground whitespace-pre-wrap leading-relaxed">
-                    {module.content}
-                  </div>
+                  <div 
+                    className="module-content text-sm text-foreground leading-relaxed max-w-none"
+                    style={{
+                      fontSize: '14px',
+                      lineHeight: '1.6',
+                      color: 'oklch(0.35 0.01 258.34)'
+                    }}
+                    dangerouslySetInnerHTML={{ __html: renderMarkdown(module.content) }}
+                  />
                 )}
               </div>
             </div>

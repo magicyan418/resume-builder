@@ -1,16 +1,10 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@iconify/react";
 import type { ResumeData } from "@/types/resume";
-import { generatePdfFilename } from "@/lib/resume-utils";
-import dynamic from "next/dynamic";
-
-const DynamicPDFDownloadLink = dynamic(
-  () => import("./pdf-viewer").then((mod) => mod.PDFDownloadLink),
-  { ssr: false }
-);
+import { buildResumeHtml } from "@/lib/export-html";
 
 interface PDFExportButtonProps {
   resumeData: ResumeData;
@@ -23,42 +17,100 @@ export function PDFExportButton({
   variant = "default",
   size = "default",
 }: PDFExportButtonProps) {
-  const fileName = generatePdfFilename(resumeData.title);
+  const [isExporting, setIsExporting] = useState(false);
 
-  const openPDFPreview = () => {
-    const childWindow = window.open('/pdf-preview', '_blank');
-    if (!childWindow) {
-      console.error('Failed to open popup window');
-      return;
-    }
-
-    const handleMessage = (event: MessageEvent) => {
-      if (event.source === childWindow && event.data.type === 'ready') {
-        childWindow.postMessage({ type: 'resumeData', data: resumeData }, '*');
-        window.removeEventListener('message', handleMessage);
+  const previewHtml = async () => {
+    try {
+      const html = buildResumeHtml(resumeData);
+      const newWindow = window.open();
+      if (newWindow) {
+        newWindow.document.write(html);
+        newWindow.document.close();
       }
-    };
+    } catch (error) {
+      console.error("HTML 预览错误:", error);
+      alert("HTML 预览失败");
+    }
+  };
 
-    window.addEventListener('message', handleMessage);
+  const exportResumePdf = async () => {
+    if (isExporting) return;
+    
+    setIsExporting(true);
+    
+    try {
+      // 生成完整的 HTML 内容
+      const html = buildResumeHtml(resumeData);
+      
+      // 在本地开发环境，先测试 HTML 生成
+      if (process.env.NODE_ENV === "development") {
+        console.log("生成的 HTML 长度:", html.length);
+        console.log("HTML 预览:", html.substring(0, 500) + "...");
+      }
+      
+      // 调用 API 生成 PDF
+      const response = await fetch("/api/export/pdf", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ html }),
+      });
 
-    // 设置超时，如果子窗口没有准备好
-    setTimeout(() => {
-      window.removeEventListener('message', handleMessage);
-    }, 5000); // 5秒超时
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("API 错误响应:", errorData);
+        throw new Error(errorData.details || errorData.error || "PDF 生成失败");
+      }
+
+      // 获取 PDF 数据并下载
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      
+      // 创建下载链接
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `resume-${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      
+      // 清理
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+    } catch (error) {
+      console.error("PDF 导出错误:", error);
+      alert(`PDF 导出失败: ${error instanceof Error ? error.message : "未知错误"}`);
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (
-    <>
+    <div className="flex gap-2">
+      <Button
+        variant="outline"
+        size={size}
+        onClick={previewHtml}
+        className="gap-2"
+      >
+        <Icon icon="mdi:eye" className="w-4 h-4" />
+        预览HTML
+      </Button>
       <Button
         variant={variant}
         size={size}
-        onClick={openPDFPreview}
+        onClick={exportResumePdf}
+        disabled={isExporting}
         className="gap-2"
       >
-        <Icon icon="mdi:file-pdf-box" className="w-4 h-4" />
-        导出PDF
+        <Icon 
+          icon={isExporting ? "mdi:loading" : "mdi:file-pdf-box"} 
+          className={`w-4 h-4 ${isExporting ? "animate-spin" : ""}`} 
+        />
+        {isExporting ? "生成中..." : "导出PDF"}
       </Button>
-    </>
+    </div>
   );
 }
 

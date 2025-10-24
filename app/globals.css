@@ -176,6 +176,130 @@
   .icon-button {
     @apply inline-flex items-center justify-center w-8 h-8 rounded-md hover:bg-accent/10 transition-colors;
   }
+
+  /* Markdown 内容样式 */
+  .module-content h1 {
+    font-size: 20px !important;
+    font-weight: 600 !important;
+    margin: 16px 0 8px 0 !important;
+    color: oklch(0.35 0.01 258.34) !important;
+  }
+  
+  .module-content h2 {
+    font-size: 18px !important;
+    font-weight: 600 !important;
+    margin: 16px 0 8px 0 !important;
+    color: oklch(0.35 0.01 258.34) !important;
+  }
+  
+  .module-content h3 {
+    font-size: 16px !important;
+    font-weight: 600 !important;
+    margin: 16px 0 8px 0 !important;
+    color: oklch(0.35 0.01 258.34) !important;
+  }
+  
+  .module-content h4 {
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    margin: 16px 0 8px 0 !important;
+    color: oklch(0.35 0.01 258.34) !important;
+  }
+  
+  .module-content h5 {
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    margin: 16px 0 8px 0 !important;
+    color: oklch(0.35 0.01 258.34) !important;
+  }
+  
+  .module-content h6 {
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    margin: 16px 0 8px 0 !important;
+    color: oklch(0.35 0.01 258.34) !important;
+  }
+  
+  .module-content p {
+    margin: 8px 0 !important;
+  }
+  
+  .module-content ul, .module-content ol {
+    margin: 8px 0 !important;
+    padding-left: 20px !important;
+  }
+  
+  .module-content li {
+    margin: 4px 0 !important;
+  }
+  
+  .module-content strong {
+    font-weight: 600 !important;
+  }
+  
+  .module-content em {
+    font-style: italic !important;
+  }
+  
+  .module-content code {
+    background: oklch(0.97 0.01 258.34) !important;
+    padding: 2px 6px !important;
+    border-radius: 4px !important;
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Courier New', monospace !important;
+    font-size: 13px !important;
+    color: oklch(0.5 0.22 12.17) !important;
+  }
+  
+  .module-content pre {
+    background: oklch(0.97 0.01 258.34) !important;
+    padding: 12px !important;
+    border-radius: 6px !important;
+    overflow-x: auto !important;
+    margin: 12px 0 !important;
+    border: 1px solid oklch(0.9 0 0) !important;
+  }
+  
+  .module-content pre code {
+    background: none !important;
+    padding: 0 !important;
+    color: oklch(0.35 0.01 258.34) !important;
+  }
+  
+  .module-content blockquote {
+    border-left: 4px solid oklch(0.9 0 0) !important;
+    padding-left: 16px !important;
+    margin: 12px 0 !important;
+    color: oklch(0.35 0.01 258.34) !important;
+    font-style: italic !important;
+  }
+  
+  .module-content table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    margin: 12px 0 !important;
+    border: 1px solid oklch(0.9 0 0) !important;
+  }
+  
+  .module-content th, .module-content td {
+    border: 1px solid oklch(0.9 0 0) !important;
+    padding: 8px 12px !important;
+    text-align: left !important;
+  }
+  
+  .module-content th {
+    background: oklch(0.98 0.01 258.34) !important;
+    font-weight: 600 !important;
+    color: oklch(0.35 0.01 258.34) !important;
+  }
+  
+  .module-content a {
+    color: oklch(0.45 0.15 162.4) !important;
+    text-decoration: none !important;
+  }
+  
+  .module-content a:hover {
+    text-decoration: underline !important;
+  }
 }
 
 /* 导入打印样式 */
