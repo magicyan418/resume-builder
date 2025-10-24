@@ -9,6 +9,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@hello-pangea/dnd": "^18.0.1",
     "@iconify/react": "latest",
     "@iconify/utils": "^3.0.1",
     "@radix-ui/react-collapsible": "latest",

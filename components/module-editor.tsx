@@ -12,6 +12,7 @@ import dynamic from "next/dynamic"
 import type { ResumeModule } from "@/types/resume"
 import { createNewModule } from "@/lib/resume-utils"
 import IconPicker from "./icon-picker"
+import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd"
 
 // 动态引入MDEditor，避免SSR问题
 const MDEditor = dynamic(() => import("@uiw/react-md-editor"), { ssr: false })
@@ -60,24 +61,27 @@ export default function ModuleEditor({ modules, onUpdate }: ModuleEditorProps) {
   }
 
   /**
-   * 移动模块位置
+   * 处理拖拽结束事件
    */
-  const moveModule = (id: string, direction: "up" | "down") => {
-    const currentIndex = modules.findIndex((module) => module.id === id)
-    if (currentIndex === -1) return
-
-    const newIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1
-    if (newIndex < 0 || newIndex >= modules.length) return
-
+  const handleDragEnd = (result: DropResult) => {
+    // 如果没有目标或者拖拽到了列表外，则不做任何操作
+    if (!result.destination) return
+    
+    const { source, destination } = result
+    
+    // 如果源位置和目标位置相同，则不做任何操作
+    if (source.index === destination.index) return
+    
+    // 重新排序模块
     const updatedModules = [...modules]
-    const [movedModule] = updatedModules.splice(currentIndex, 1)
-    updatedModules.splice(newIndex, 0, movedModule)
-
+    const [movedModule] = updatedModules.splice(source.index, 1)
+    updatedModules.splice(destination.index, 0, movedModule)
+    
     // 重新设置order
     updatedModules.forEach((module, index) => {
       module.order = index
     })
-
+    
     onUpdate(updatedModules)
   }
 
@@ -109,30 +113,53 @@ export default function ModuleEditor({ modules, onUpdate }: ModuleEditorProps) {
         </Button>
       </div>
 
-      <div className="space-y-3">
-        {modules
-          .sort((a, b) => a.order - b.order)
-          .map((module, index) => (
-            <ModuleItemEditor
-              key={module.id}
-              module={module}
-              isExpanded={expandedModules.has(module.id)}
-              isFirst={index === 0}
-              isLast={index === modules.length - 1}
-              onToggle={() => toggleModule(module.id)}
-              onUpdate={(updates) => updateModule(module.id, updates)}
-              onRemove={() => removeModule(module.id)}
-              onMove={(direction) => moveModule(module.id, direction)}
-            />
-          ))}
-
-        {modules.length === 0 && (
-          <div className="text-center py-8 text-muted-foreground">
-            <Icon icon="mdi:view-module-outline" className="w-8 h-8 mx-auto mb-2 opacity-50" />
-            <p className="text-sm">暂无简历模块，点击"添加模块"开始编辑</p>
-          </div>
-        )}
-      </div>
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <Droppable droppableId="modules-list" isDropDisabled={false}>
+          {(provided) => (
+            <div 
+              className="space-y-3" 
+              {...provided.droppableProps} 
+              ref={provided.innerRef}
+            >
+              {modules
+                .sort((a, b) => a.order - b.order)
+                .map((module, index) => (
+                  <Draggable key={module.id} draggableId={module.id} index={index}>
+                    {(provided, snapshot) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.draggableProps}
+                          {...provided.dragHandleProps}
+                          style={{
+                            ...provided.draggableProps.style,
+                            opacity: snapshot.isDragging ? 0.8 : 1
+                          }}
+                        >
+                          <ModuleItemEditor
+                            module={module}
+                            isExpanded={expandedModules.has(module.id)}
+                            isFirst={index === 0}
+                            isLast={index === modules.length - 1}
+                            onToggle={() => toggleModule(module.id)}
+                            onUpdate={(updates) => updateModule(module.id, updates)}
+                            onRemove={() => removeModule(module.id)}
+                          />
+                        </div>
+                    )}
+                  </Draggable>
+                ))}
+              {provided.placeholder}
+              
+              {modules.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Icon icon="mdi:view-module-outline" className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">暂无简历模块，点击"添加模块"开始编辑</p>
+                </div>
+              )}
+            </div>
+          )}
+        </Droppable>
+      </DragDropContext>
     </Card>
   )
 }
@@ -148,7 +175,6 @@ interface ModuleItemEditorProps {
   onToggle: () => void
   onUpdate: (updates: Partial<ResumeModule>) => void
   onRemove: () => void
-  onMove: (direction: "up" | "down") => void
 }
 
 function ModuleItemEditor({
@@ -159,7 +185,6 @@ function ModuleItemEditor({
   onToggle,
   onUpdate,
   onRemove,
-  onMove,
 }: ModuleItemEditorProps) {
   return (
     <Collapsible open={isExpanded} onOpenChange={onToggle}>
@@ -168,6 +193,10 @@ function ModuleItemEditor({
         <CollapsibleTrigger asChild>
           <div className="flex items-center justify-between p-3 cursor-pointer hover:bg-muted/50 transition-colors">
             <div className="flex items-center gap-3">
+              <Icon 
+                icon="mdi:drag" 
+                className="w-4 h-4 text-muted-foreground cursor-grab active:cursor-grabbing"
+              />
               {module.icon ? (
                 <svg width={16} height={16} viewBox="0 0 24 24" dangerouslySetInnerHTML={{ __html: module.icon }} />
               ) : (
@@ -189,28 +218,7 @@ function ModuleItemEditor({
         <CollapsibleContent>
           <div className="p-3 pt-0 space-y-4 border-t">
             {/* 工具栏 */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onMove("up")}
-                  disabled={isFirst}
-                  className="icon-button"
-                >
-                  <Icon icon="mdi:arrow-up" className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onMove("down")}
-                  disabled={isLast}
-                  className="icon-button"
-                >
-                  <Icon icon="mdi:arrow-down" className="w-4 h-4" />
-                </Button>
-              </div>
-
+            <div className="flex items-center justify-end">
               <Button
                 variant="ghost"
                 size="sm"
