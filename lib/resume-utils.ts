@@ -1,76 +1,81 @@
-import type { ResumeData, MagicyanFile, ResumeModule, PersonalInfoItem } from "@/types/resume"
+import type {
+  MagicyanFile,
+  PersonalInfoItem,
+  ResumeData,
+  ResumeModule,
+} from "@/types/resume"
 
+function normalizeModule(module: ResumeModule, order: number): ResumeModule {
+  return {
+    ...module,
+    subtitle: module.subtitle ?? "",
+    timeRange: module.timeRange ?? "",
+    content: module.content ?? "",
+    contentMode: module.contentMode === "rich-text" ? "rich-text" : "markdown",
+    order,
+  }
+}
 
-/**
- * 创建新的简历模块
- */
 export function createNewModule(order: number): ResumeModule {
   return {
-    id: `module-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    id: `module-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
     title: "新模块",
     subtitle: "",
     timeRange: "",
     content: "",
+    contentMode: "markdown",
     icon: "mdi:text-box",
     order,
   }
 }
 
-/**
- * 创建新的个人信息项
- */
 export function createNewPersonalInfoItem(): PersonalInfoItem {
   return {
-    id: `info-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    id: `info-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
     label: "新标签",
     value: "",
     icon: "mdi:information",
   }
 }
 
-/**
- * 导出简历数据为.magicyan文件
- */
 export function exportToMagicyanFile(resumeData: ResumeData): string {
-  const magicyanFile: MagicyanFile = {
-    version: "1.0.0",
+  const payload: MagicyanFile = {
+    version: "1.1.0",
     data: {
       ...resumeData,
+      modules: resumeData.modules.map((module, index) => normalizeModule(module, index)),
       updatedAt: new Date().toISOString(),
     },
     metadata: {
       exportedAt: new Date().toISOString(),
-      appVersion: "1.0.0",
+      appVersion: "1.1.0",
     },
   }
 
-  return JSON.stringify(magicyanFile, null, 2)
+  return JSON.stringify(payload, null, 2)
 }
 
-/**
- * 从.magicyan文件内容导入简历数据
- */
 export function importFromMagicyanFile(fileContent: string): ResumeData {
   try {
     if (!fileContent.trim()) {
       throw new Error("文件内容为空")
     }
 
-    const magicyanFile: MagicyanFile = JSON.parse(fileContent)
+    const parsed = JSON.parse(fileContent) as MagicyanFile
 
-    if (!magicyanFile || typeof magicyanFile !== "object") {
+    if (!parsed || typeof parsed !== "object") {
       throw new Error("无效的文件格式")
     }
 
-    if (!magicyanFile.version) {
+    if (!parsed.version) {
       throw new Error("缺少版本信息")
     }
 
-    if (!magicyanFile.data) {
+    if (!parsed.data) {
       throw new Error("缺少简历数据")
     }
 
-    const data = magicyanFile.data
+    const data = parsed.data
     if (!data.title || typeof data.title !== "string") {
       throw new Error("简历标题格式错误")
     }
@@ -98,20 +103,19 @@ export function importFromMagicyanFile(fileContent: string): ResumeData {
     const now = new Date().toISOString()
     return {
       ...data,
+      modules: data.modules.map((module, index) => normalizeModule(module, index)),
       createdAt: data.createdAt || now,
       updatedAt: now,
     }
   } catch (error) {
     if (error instanceof SyntaxError) {
-      throw new Error("文件格式不正确，请确保是有效的JSON文件")
+      throw new Error("文件格式不正确，请确认是有效的 JSON 文件")
     }
+
     throw error
   }
 }
 
-/**
- * 下载文件到本地
- */
 export function downloadFile(content: string, filename: string, mimeType = "application/json") {
   const blob = new Blob([content], { type: mimeType })
   const url = URL.createObjectURL(blob)
@@ -124,21 +128,12 @@ export function downloadFile(content: string, filename: string, mimeType = "appl
   URL.revokeObjectURL(url)
 }
 
-/**
- * 生成PDF文件名
- */
 export function generatePdfFilename(resumeTitle: string): string {
   const timestamp = new Date().toISOString().slice(0, 10)
   const cleanTitle = resumeTitle.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, "_")
   return `${cleanTitle}_${timestamp}.pdf`
 }
 
-
-
-
-/**
- * 验证简历数据完整性
- */
 export function validateResumeData(data: ResumeData): { isValid: boolean; errors: string[] } {
   const errors: string[] = []
 
@@ -151,7 +146,7 @@ export function validateResumeData(data: ResumeData): { isValid: boolean; errors
   } else {
     data.personalInfo.forEach((item, index) => {
       if (!item.id || !item.label?.trim()) {
-        errors.push(`个人信息第${index + 1}项格式错误`)
+        errors.push(`个人信息第 ${index + 1} 项格式错误`)
       }
     })
   }
@@ -161,7 +156,7 @@ export function validateResumeData(data: ResumeData): { isValid: boolean; errors
   } else {
     data.modules.forEach((module, index) => {
       if (!module.id || typeof module.title !== "string") {
-        errors.push(`简历模块第${index + 1}项格式错误`)
+        errors.push(`简历模块第 ${index + 1} 项格式错误`)
       }
     })
   }

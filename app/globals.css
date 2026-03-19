@@ -142,7 +142,7 @@
   }
 
   .preview-panel {
-    @apply bg-muted/30 overflow-y-auto;
+    @apply flex-1 bg-muted/30 overflow-y-auto;
   }
 
   .resume-preview {

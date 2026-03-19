@@ -1,20 +1,20 @@
 "use client"
+
 import { useState } from "react"
+import dynamic from "next/dynamic"
+import { DragDropContext, Draggable, Droppable, type DropResult } from "@hello-pangea/dnd"
+import { Icon } from "@iconify/react"
+import IconPicker from "@/components/icon-picker"
+import RichTextEditor from "@/components/rich-text-editor"
+import { createNewModule } from "@/lib/resume-utils"
+import type { ModuleContentMode, ResumeModule } from "@/types/resume"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { Icon } from "@iconify/react"
-import dynamic from "next/dynamic"
-import type { ResumeModule } from "@/types/resume"
-import { createNewModule } from "@/lib/resume-utils"
-import IconPicker from "./icon-picker"
-import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd"
 
-// 动态引入MDEditor，避免SSR问题
 const MDEditor = dynamic(() => import("@uiw/react-md-editor"), { ssr: false })
 
 interface ModuleEditorProps {
@@ -22,138 +22,99 @@ interface ModuleEditorProps {
   onUpdate: (modules: ResumeModule[]) => void
 }
 
-/**
- * 简历模块编辑器组件
- */
 export default function ModuleEditor({ modules, onUpdate }: ModuleEditorProps) {
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set())
 
-  /**
-   * 添加新模块
-   */
   const addModule = () => {
     const newModule = createNewModule(modules.length)
-    const updatedModules = [...modules, newModule]
-    onUpdate(updatedModules)
-    // 自动展开新添加的模块
+    onUpdate([...modules, newModule])
     setExpandedModules((prev) => new Set([...prev, newModule.id]))
   }
 
-  /**
-   * 更新模块
-   */
   const updateModule = (id: string, updates: Partial<ResumeModule>) => {
-    const updatedModules = modules.map((module) => (module.id === id ? { ...module, ...updates } : module))
-    onUpdate(updatedModules)
+    onUpdate(modules.map((module) => (module.id === id ? { ...module, ...updates } : module)))
   }
 
-  /**
-   * 删除模块
-   */
   const removeModule = (id: string) => {
-    const updatedModules = modules.filter((module) => module.id !== id)
-    onUpdate(updatedModules)
+    onUpdate(modules.filter((module) => module.id !== id))
     setExpandedModules((prev) => {
-      const newSet = new Set(prev)
-      newSet.delete(id)
-      return newSet
+      const next = new Set(prev)
+      next.delete(id)
+      return next
     })
   }
 
-  /**
-   * 处理拖拽结束事件
-   */
-  const handleDragEnd = (result: DropResult) => {
-    // 如果没有目标或者拖拽到了列表外，则不做任何操作
-    if (!result.destination) return
-    
-    const { source, destination } = result
-    
-    // 如果源位置和目标位置相同，则不做任何操作
-    if (source.index === destination.index) return
-    
-    // 重新排序模块
-    const updatedModules = [...modules]
-    const [movedModule] = updatedModules.splice(source.index, 1)
-    updatedModules.splice(destination.index, 0, movedModule)
-    
-    // 重新设置order
-    updatedModules.forEach((module, index) => {
-      module.order = index
-    })
-    
-    onUpdate(updatedModules)
-  }
-
-  /**
-   * 切换模块展开状态
-   */
   const toggleModule = (id: string) => {
     setExpandedModules((prev) => {
-      const newSet = new Set(prev)
-      if (newSet.has(id)) {
-        newSet.delete(id)
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
       } else {
-        newSet.add(id)
+        next.add(id)
       }
-      return newSet
+      return next
     })
+  }
+
+  const handleDragEnd = ({ source, destination }: DropResult) => {
+    if (!destination || source.index === destination.index) {
+      return
+    }
+
+    const nextModules = [...modules]
+    const [moved] = nextModules.splice(source.index, 1)
+    nextModules.splice(destination.index, 0, moved)
+    onUpdate(nextModules.map((module, index) => ({ ...module, order: index })))
   }
 
   return (
     <Card className="section-card">
       <div className="section-header">
         <div className="flex items-center gap-2">
-          <Icon icon="mdi:view-module" className="w-5 h-5 text-primary" />
+          <Icon icon="mdi:view-module" className="h-5 w-5 text-primary" />
           <h2 className="section-title">简历模块</h2>
         </div>
         <Button size="sm" variant="outline" onClick={addModule} className="gap-2 bg-transparent">
-          <Icon icon="mdi:plus" className="w-4 h-4" />
+          <Icon icon="mdi:plus" className="h-4 w-4" />
           添加模块
         </Button>
       </div>
 
       <DragDropContext onDragEnd={handleDragEnd}>
-        <Droppable droppableId="modules-list" isDropDisabled={false}>
+        <Droppable droppableId="modules-list">
           {(provided) => (
-            <div 
-              className="space-y-3" 
-              {...provided.droppableProps} 
-              ref={provided.innerRef}
-            >
-              {modules
+            <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-3">
+              {[...modules]
                 .sort((a, b) => a.order - b.order)
                 .map((module, index) => (
                   <Draggable key={module.id} draggableId={module.id} index={index}>
-                    {(provided, snapshot) => (
-                        <div
-                          ref={provided.innerRef}
-                          {...provided.draggableProps}
-                          {...provided.dragHandleProps}
-                          style={{
-                            ...provided.draggableProps.style,
-                            opacity: snapshot.isDragging ? 0.8 : 1
-                          }}
-                        >
-                          <ModuleItemEditor
-                            module={module}
-                            isExpanded={expandedModules.has(module.id)}
-                            isFirst={index === 0}
-                            isLast={index === modules.length - 1}
-                            onToggle={() => toggleModule(module.id)}
-                            onUpdate={(updates) => updateModule(module.id, updates)}
-                            onRemove={() => removeModule(module.id)}
-                          />
-                        </div>
+                    {(draggableProvided, snapshot) => (
+                      <div
+                        ref={draggableProvided.innerRef}
+                        {...draggableProvided.draggableProps}
+                        {...draggableProvided.dragHandleProps}
+                        style={{
+                          ...draggableProvided.draggableProps.style,
+                          opacity: snapshot.isDragging ? 0.82 : 1,
+                        }}
+                      >
+                        <ModuleItemEditor
+                          module={module}
+                          isExpanded={expandedModules.has(module.id)}
+                          onToggle={() => toggleModule(module.id)}
+                          onUpdate={(updates) => updateModule(module.id, updates)}
+                          onRemove={() => removeModule(module.id)}
+                        />
+                      </div>
                     )}
                   </Draggable>
                 ))}
               {provided.placeholder}
-              
+
               {modules.length === 0 && (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Icon icon="mdi:view-module-outline" className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">暂无简历模块，点击"添加模块"开始编辑</p>
+                <div className="py-8 text-center text-muted-foreground">
+                  <Icon icon="mdi:view-module-outline" className="mx-auto mb-2 h-8 w-8 opacity-50" />
+                  <p className="text-sm">暂无简历模块，点击“添加模块”开始编辑。</p>
                 </div>
               )}
             </div>
@@ -164,79 +125,54 @@ export default function ModuleEditor({ modules, onUpdate }: ModuleEditorProps) {
   )
 }
 
-/**
- * 模块项编辑器
- */
 interface ModuleItemEditorProps {
   module: ResumeModule
   isExpanded: boolean
-  isFirst: boolean
-  isLast: boolean
   onToggle: () => void
   onUpdate: (updates: Partial<ResumeModule>) => void
   onRemove: () => void
 }
 
-function ModuleItemEditor({
-  module,
-  isExpanded,
-  isFirst,
-  isLast,
-  onToggle,
-  onUpdate,
-  onRemove,
-}: ModuleItemEditorProps) {
+function ModuleItemEditor({ module, isExpanded, onToggle, onUpdate, onRemove }: ModuleItemEditorProps) {
+  const contentMode: ModuleContentMode = module.contentMode === "rich-text" ? "rich-text" : "markdown"
+
   return (
     <Collapsible open={isExpanded} onOpenChange={onToggle}>
-      <div className="border rounded-lg bg-muted/30">
-        {/* 模块头部 */}
+      <div className="rounded-lg border bg-muted/30">
         <CollapsibleTrigger asChild>
-          <div className="flex items-center justify-between p-3 cursor-pointer hover:bg-muted/50 transition-colors">
+          <div className="flex cursor-pointer items-center justify-between p-3 transition-colors hover:bg-muted/50">
             <div className="flex items-center gap-3">
-              <Icon 
-                icon="mdi:drag" 
-                className="w-4 h-4 text-muted-foreground cursor-grab active:cursor-grabbing"
-              />
+              <Icon icon="mdi:drag" className="h-4 w-4 cursor-grab text-muted-foreground active:cursor-grabbing" />
               {module.icon ? (
                 <svg width={16} height={16} viewBox="0 0 24 24" dangerouslySetInnerHTML={{ __html: module.icon }} />
               ) : (
-                <div className="w-4 h-4 border border-dashed border-gray-400 rounded-sm" />
+                <div className="h-4 w-4 rounded-sm border border-dashed border-gray-400" />
               )}
               <span className="font-medium">{module.title || "未命名模块"}</span>
+              <span className="rounded-full bg-background px-2 py-0.5 text-xs text-muted-foreground">
+                {contentMode === "markdown" ? "Markdown" : "富文本"}
+              </span>
               {module.subtitle && <span className="text-sm text-muted-foreground">- {module.subtitle}</span>}
             </div>
-            <div className="flex items-center gap-1">
-              <Icon
-                icon={isExpanded ? "mdi:chevron-up" : "mdi:chevron-down"}
-                className="w-4 h-4 text-muted-foreground"
-              />
-            </div>
+            <Icon icon={isExpanded ? "mdi:chevron-up" : "mdi:chevron-down"} className="h-4 w-4 text-muted-foreground" />
           </div>
         </CollapsibleTrigger>
 
-        {/* 模块内容编辑 */}
         <CollapsibleContent>
-          <div className="p-3 pt-0 space-y-4 border-t">
-            {/* 工具栏 */}
+          <div className="space-y-4 border-t p-3 pt-4">
             <div className="flex items-center justify-end">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onRemove}
-                className="icon-button text-destructive hover:text-destructive"
-              >
-                <Icon icon="mdi:delete" className="w-4 h-4" />
+              <Button variant="ghost" size="sm" onClick={onRemove} className="text-destructive hover:text-destructive">
+                <Icon icon="mdi:delete" className="h-4 w-4" />
               </Button>
             </div>
 
-            {/* 基本信息编辑 */}
             <div className="grid grid-cols-2 gap-3">
               <div className="form-group">
                 <Label className="form-label">大标题</Label>
                 <Input
                   value={module.title}
-                  onChange={(e) => onUpdate({ title: e.target.value })}
-                  placeholder="如：工作经历、教育背景"
+                  onChange={(event) => onUpdate({ title: event.target.value })}
+                  placeholder="例如：工作经历、项目经历"
                 />
               </div>
               <div className="form-group">
@@ -247,7 +183,7 @@ function ModuleItemEditor({
                       {module.icon ? (
                         <svg width={16} height={16} viewBox="0 0 24 24" dangerouslySetInnerHTML={{ __html: module.icon }} />
                       ) : (
-                        <div className="w-4 h-4 border border-dashed border-gray-400 rounded-sm flex items-center justify-center">
+                        <div className="flex h-4 w-4 items-center justify-center rounded-sm border border-dashed border-gray-400">
                           <span className="text-[8px] text-gray-400">无</span>
                         </div>
                       )}
@@ -269,28 +205,63 @@ function ModuleItemEditor({
                 <Label className="form-label">副标题</Label>
                 <Input
                   value={module.subtitle || ""}
-                  onChange={(e) => onUpdate({ subtitle: e.target.value })}
-                  placeholder="如：公司名称、学校名称（可选）"
+                  onChange={(event) => onUpdate({ subtitle: event.target.value })}
+                  placeholder="例如：公司名称、学校名称"
                 />
               </div>
               <div className="form-group">
                 <Label className="form-label">时间范围</Label>
                 <Input
                   value={module.timeRange || ""}
-                  onChange={(e) => onUpdate({ timeRange: e.target.value })}
-                  placeholder="如：2020.01 - 2023.12（可选）"
+                  onChange={(event) => onUpdate({ timeRange: event.target.value })}
+                  placeholder="例如：2020.01 - 2023.12"
                 />
               </div>
             </div>
 
-            <div className="form-group">
-              <Label className="form-label">详细内容</Label>
-              <MDEditor
-                value={module.content || ""}
-                onChange={(val = "") => onUpdate({ content: val })}
-                height={200}
-                data-color-mode="light"
-              />
+            <div className="form-group space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <Label className="form-label">详细内容</Label>
+                <div className="inline-flex rounded-md border bg-background p-1">
+                  <Button
+                    type="button"
+                    variant={contentMode === "markdown" ? "default" : "ghost"}
+                    size="sm"
+                    className="h-8"
+                    onClick={() => onUpdate({ contentMode: "markdown" })}
+                  >
+                    Markdown
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={contentMode === "rich-text" ? "default" : "ghost"}
+                    size="sm"
+                    className="h-8"
+                    onClick={() => onUpdate({ contentMode: "rich-text" })}
+                  >
+                    富文本
+                  </Button>
+                </div>
+              </div>
+
+              {contentMode === "markdown" ? (
+                <MDEditor
+                  value={module.content || ""}
+                  onChange={(value = "") => onUpdate({ content: value })}
+                  height={240}
+                  data-color-mode="light"
+                />
+              ) : (
+                <RichTextEditor
+                  value={module.content || ""}
+                  onChange={(value) => onUpdate({ content: value })}
+                  placeholder="输入富文本内容，导出 PDF 时会按当前排版直接渲染。"
+                />
+              )}
+
+              <p className="text-xs text-muted-foreground">
+                Markdown 适合结构化编写；富文本适合所见即所得排版。两种模式都会参与预览和 Puppeteer 导出。
+              </p>
             </div>
           </div>
         </CollapsibleContent>
