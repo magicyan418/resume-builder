@@ -1,21 +1,15 @@
-"use client";
+"use client"
 
-import React from "react";
-import { Button } from "@/components/ui/button";
-import { Icon } from "@iconify/react";
-import type { ResumeData } from "@/types/resume";
-import { generatePdfFilename } from "@/lib/resume-utils";
-import dynamic from "next/dynamic";
-
-const DynamicPDFDownloadLink = dynamic(
-  () => import("./pdf-viewer").then((mod) => mod.PDFDownloadLink),
-  { ssr: false }
-);
+import { useState } from "react"
+import { Icon } from "@iconify/react"
+import { downloadResumePdf } from "@/lib/pdf-client"
+import type { ResumeData } from "@/types/resume"
+import { Button } from "@/components/ui/button"
 
 interface PDFExportButtonProps {
-  resumeData: ResumeData;
-  variant?: "default" | "outline";
-  size?: "default" | "sm";
+  resumeData: ResumeData
+  variant?: "default" | "outline"
+  size?: "default" | "sm"
 }
 
 export function PDFExportButton({
@@ -23,43 +17,32 @@ export function PDFExportButton({
   variant = "default",
   size = "default",
 }: PDFExportButtonProps) {
-  const fileName = generatePdfFilename(resumeData.title);
+  const [isExporting, setIsExporting] = useState(false)
 
-  const openPDFPreview = () => {
-    const childWindow = window.open('/pdf-preview', '_blank');
-    if (!childWindow) {
-      console.error('Failed to open popup window');
-      return;
+  const handleExport = async () => {
+    if (isExporting) {
+      return
     }
 
-    const handleMessage = (event: MessageEvent) => {
-      if (event.source === childWindow && event.data.type === 'ready') {
-        childWindow.postMessage({ type: 'resumeData', data: resumeData }, '*');
-        window.removeEventListener('message', handleMessage);
-      }
-    };
-
-    window.addEventListener('message', handleMessage);
-
-    // 设置超时，如果子窗口没有准备好
-    setTimeout(() => {
-      window.removeEventListener('message', handleMessage);
-    }, 5000); // 5秒超时
-  };
+    setIsExporting(true)
+    try {
+      await downloadResumePdf(resumeData)
+    } catch (error) {
+      alert(`PDF 导出失败：${error instanceof Error ? error.message : "未知错误"}`)
+    } finally {
+      setIsExporting(false)
+    }
+  }
 
   return (
-    <>
-      <Button
-        variant={variant}
-        size={size}
-        onClick={openPDFPreview}
-        className="gap-2"
-      >
-        <Icon icon="mdi:file-pdf-box" className="w-4 h-4" />
-        导出PDF
-      </Button>
-    </>
-  );
+    <Button variant={variant} size={size} onClick={handleExport} disabled={isExporting} className="gap-2">
+      <Icon
+        icon={isExporting ? "mdi:loading" : "mdi:file-pdf-box"}
+        className={`h-4 w-4 ${isExporting ? "animate-spin" : ""}`}
+      />
+      {isExporting ? "生成中..." : "导出 PDF"}
+    </Button>
+  )
 }
 
-export default PDFExportButton;
+export default PDFExportButton

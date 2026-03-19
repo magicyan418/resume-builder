@@ -1,36 +1,28 @@
-"use client";
+"use client"
 
-import { Icon } from "@iconify/react";
-import type { ResumeData } from "@/types/resume";
+import { Icon } from "@iconify/react"
+import { renderModuleContent } from "@/lib/resume-content"
+import type { ResumeData } from "@/types/resume"
 
 interface ResumePreviewProps {
-  resumeData: ResumeData;
+  resumeData: ResumeData
 }
 
-/**
- * 简历预览组件
- */
 export default function ResumePreview({ resumeData }: ResumePreviewProps) {
   return (
     <div className="resume-preview resume-content">
-      {/* 头部信息 */}
-      <div className="flex items-start justify-between mb-6">
+      <div className="mb-6 flex items-start justify-between">
         <div className="flex-1">
-          <h1 className="resume-title text-2xl font-bold text-foreground mb-4">
+          <h1 className="resume-title mb-4 text-2xl font-bold text-foreground">
             {resumeData.title || "简历标题"}
           </h1>
 
-          {/* 个人信息 */}
-          <div className="personal-info grid grid-cols-2 gap-x-6 gap-y-2">
+          <div className="personal-info grid grid-cols-2 gap-x-12 gap-y-2">
             {resumeData.personalInfo.map((item) => (
-              <div
-                key={item.id}
-                className="personal-info-item flex items-center gap-2"
-              >
+              <div key={item.id} className="personal-info-item flex items-center gap-2">
                 {item.icon && (
                   <svg
-                    className="resume-icon w-4 h-4
-                     flex-shrink-0 transform -translate-y-[-1px]"
+                    className="resume-icon h-4 w-4 flex-shrink-0 -translate-y-[1px]"
                     fill="black"
                     width={16}
                     height={16}
@@ -38,85 +30,70 @@ export default function ResumePreview({ resumeData }: ResumePreviewProps) {
                     dangerouslySetInnerHTML={{ __html: item.icon }}
                   />
                 )}
-                <span className="text-sm text-muted-foreground">
-                  {item.label}:
-                </span>
-                <span className="text-sm text-foreground">
-                  {item.value || "未填写"}
-                </span>
+                <span className="text-sm text-muted-foreground">{item.label}:</span>
+                <span className="text-sm text-foreground">{item.value || "未填写"}</span>
               </div>
             ))}
           </div>
         </div>
 
-        {/* 头像 */}
         {resumeData.avatar && (
-          <div className="ml-6">
+          <div>
             <img
               src={resumeData.avatar}
               alt="头像"
-              className="resume-avatar w-20 h-20 rounded-full object-cover border-2 border-border"
+              className="resume-avatar h-20 w-20 rounded-full border-2 border-border object-cover"
             />
           </div>
         )}
       </div>
 
-      {/* 简历模块 */}
       <div className="space-y-6">
-        {resumeData.modules
+        {[...resumeData.modules]
           .sort((a, b) => a.order - b.order)
           .map((module) => (
             <div key={module.id} className="resume-module">
-              <div className="module-title text-lg font-semibold text-foreground border-b border-border pb-2 mb-3 flex items-center gap-2">
+              <div className="module-title mb-3 flex items-center gap-2 border-b border-border pb-2 text-lg font-semibold text-foreground">
                 {module.icon && (
-                  <svg
-                    width={20}
-                    height={20}
-                    viewBox="0 0 24 24"
-                    dangerouslySetInnerHTML={{ __html: module.icon }}
-                  />
+                  <svg width={20} height={20} viewBox="0 0 24 24" dangerouslySetInnerHTML={{ __html: module.icon }} />
                 )}
                 {module.title}
               </div>
 
               <div className="space-y-2">
-                {/* 副标题和时间 */}
                 {(module.subtitle || module.timeRange) && (
-                  <div className="flex items-center justify-between">
-                    {module.subtitle && (
-                      <h3 className="font-medium text-foreground">
-                        {module.subtitle}
-                      </h3>
+                  <div className="flex items-center justify-between gap-4">
+                    {module.subtitle ? (
+                      <h3 className="font-medium text-foreground">{module.subtitle}</h3>
+                    ) : (
+                      <span />
                     )}
-                    {module.timeRange && (
-                      <span className="text-sm text-muted-foreground time-range">
-                        {module.timeRange}
-                      </span>
-                    )}
+                    {module.timeRange && <span className="time-range text-sm text-muted-foreground">{module.timeRange}</span>}
                   </div>
                 )}
 
-                {/* 内容 */}
                 {module.content && (
-                  <div className="module-content text-sm text-foreground whitespace-pre-wrap leading-relaxed">
-                    {module.content}
-                  </div>
+                  <div
+                    className="module-content max-w-none text-sm leading-relaxed text-foreground"
+                    style={{
+                      fontSize: "14px",
+                      lineHeight: "1.6",
+                      color: "oklch(0.35 0.01 258.34)",
+                    }}
+                    dangerouslySetInnerHTML={{ __html: renderModuleContent(module) }}
+                  />
                 )}
               </div>
             </div>
           ))}
       </div>
 
-      {/* 空状态提示 */}
       {resumeData.modules.length === 0 && (
-        <div className="text-center py-12 text-muted-foreground no-print">
-          <Icon
-            icon="mdi:file-document-outline"
-            className="w-12 h-12 mx-auto mb-4 opacity-50"
-          />
+        <div className="no-print py-12 text-center text-muted-foreground">
+          <Icon icon="mdi:file-document-outline" className="mx-auto mb-4 h-12 w-12 opacity-50" />
           <p>暂无简历内容，请在左侧编辑区域添加模块</p>
         </div>
       )}
     </div>
-  );
+  )
 }
