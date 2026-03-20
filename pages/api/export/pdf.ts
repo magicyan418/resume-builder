@@ -3,6 +3,7 @@ import path from "node:path"
 import type { NextApiRequest, NextApiResponse } from "next"
 import chromium from "@sparticuz/chromium"
 import puppeteer from "puppeteer-core"
+import type { Page } from "puppeteer-core"
 
 export const config = {
   api: {
@@ -78,6 +79,30 @@ function injectEmbeddedFont(html: string) {
   return `${embeddedFontStyle}${html}`
 }
 
+async function waitForPageAssets(page: Page) {
+  await page.evaluate(async () => {
+    const imageLoads = Array.from(document.images, (image) => {
+      if (image.complete) {
+        return Promise.resolve()
+      }
+
+      return new Promise<void>((resolve) => {
+        const finalize = () => resolve()
+        image.addEventListener("load", finalize, { once: true })
+        image.addEventListener("error", finalize, { once: true })
+      })
+    })
+
+    const fontsReady =
+      "fonts" in document ? document.fonts.ready.catch(() => undefined) : Promise.resolve(undefined)
+
+    await Promise.race([
+      Promise.all([fontsReady, ...imageLoads]),
+      new Promise<void>((resolve) => window.setTimeout(resolve, 10000)),
+    ])
+  })
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" })
@@ -116,12 +141,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const page = await browser.newPage()
     await page.setViewport({ width: 1440, height: 2048, deviceScaleFactor: 1 })
-    await page.setContent(injectEmbeddedFont(html), { waitUntil: "networkidle0", timeout: 30000 })
-    await page.evaluate(async () => {
-      if ("fonts" in document) {
-        await document.fonts.ready
-      }
-    })
+    await page.setContent(injectEmbeddedFont(html), { waitUntil: "domcontentloaded", timeout: 45000 })
+    await waitForPageAssets(page)
 
     const pdf = await page.pdf({
       format: "A4",
