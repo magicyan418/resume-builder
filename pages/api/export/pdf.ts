@@ -1,4 +1,5 @@
 import fs from "node:fs"
+import path from "node:path"
 import type { NextApiRequest, NextApiResponse } from "next"
 import chromium from "@sparticuz/chromium"
 import puppeteer from "puppeteer-core"
@@ -22,6 +23,59 @@ function findLocalChromePath() {
   ]
 
   return candidates.find((candidate) => fs.existsSync(candidate))
+}
+
+let cachedEmbeddedFontStyle = ""
+
+function getEmbeddedFontStyle() {
+  if (cachedEmbeddedFontStyle) {
+    return cachedEmbeddedFontStyle
+  }
+
+  const fontPath = path.join(process.cwd(), "public", "NotoSansSC-Medium.ttf")
+  if (!fs.existsSync(fontPath)) {
+    return ""
+  }
+
+  const fontBase64 = fs.readFileSync(fontPath).toString("base64")
+  cachedEmbeddedFontStyle = `
+    <style id="pdf-embedded-font">
+      @font-face {
+        font-family: "ResumeCJK";
+        src: url(data:font/ttf;base64,${fontBase64}) format("truetype");
+        font-style: normal;
+        font-weight: 400 700;
+      }
+
+      html,
+      body,
+      body *:not(code):not(pre) {
+        font-family: "ResumeCJK", "Noto Sans SC", "Microsoft YaHei", sans-serif !important;
+      }
+
+      code,
+      pre,
+      code *,
+      pre * {
+        font-family: "SFMono-Regular", Consolas, monospace !important;
+      }
+    </style>
+  `
+
+  return cachedEmbeddedFontStyle
+}
+
+function injectEmbeddedFont(html: string) {
+  const embeddedFontStyle = getEmbeddedFontStyle()
+  if (!embeddedFontStyle) {
+    return html
+  }
+
+  if (html.includes("</head>")) {
+    return html.replace("</head>", `${embeddedFontStyle}</head>`)
+  }
+
+  return `${embeddedFontStyle}${html}`
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -62,7 +116,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const page = await browser.newPage()
     await page.setViewport({ width: 1440, height: 2048, deviceScaleFactor: 1 })
-    await page.setContent(html, { waitUntil: "networkidle0", timeout: 30000 })
+    await page.setContent(injectEmbeddedFont(html), { waitUntil: "networkidle0", timeout: 30000 })
     await page.evaluate(async () => {
       if ("fonts" in document) {
         await document.fonts.ready
